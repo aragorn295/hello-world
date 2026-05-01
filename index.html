@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tournament Hold'em Notes — 9-handed</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1f2630;
+    --line: #2a313c;
+    --ink: #e6edf3;
+    --mute: #8b949e;
+    --accent: #2ea043;
+    --warn: #d29922;
+    --bad: #f85149;
+    --chip: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line);
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .meta { color: var(--mute); font-size: 12px; }
+  main { display: grid; grid-template-columns: 1fr 380px; gap: 12px; padding: 12px; }
+  @media (max-width: 1024px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .panel h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: var(--mute); letter-spacing: .04em; }
+  button { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button:hover { border-color: #4a5260; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.warn { background: var(--warn); border-color: var(--warn); color: #1a1a1a; }
+  button.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+  button.ghost { background: transparent; }
+  input, select, textarea { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--chip); }
+  label { font-size: 12px; color: var(--mute); display: block; margin-bottom: 2px; }
+
+  /* Table layout */
+  .table-wrap { position: relative; aspect-ratio: 16 / 10; min-height: 380px;
+    background: radial-gradient(ellipse at center, #1f5b3a 0%, #154129 60%, #0d2d1c 100%);
+    border-radius: 50% / 35%; border: 6px solid #3b2a18; box-shadow: inset 0 0 40px rgba(0,0,0,.5); }
+  .board { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: flex; gap: 6px; align-items: center; }
+  .board .pot { color: #fff; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+    background: rgba(0,0,0,.45); margin-right: 8px; font-size: 13px; }
+  .card { width: 36px; height: 50px; border-radius: 5px; background: #fafafa; color: #111;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; line-height: 1; box-shadow: 0 2px 4px rgba(0,0,0,.4); user-select: none; }
+  .card.red { color: #c2362b; }
+  .card.empty { background: rgba(255,255,255,.06); color: rgba(255,255,255,.3); border: 1px dashed rgba(255,255,255,.2); box-shadow: none; font-size: 11px; }
+  .card.mini { width: 22px; height: 30px; font-size: 11px; }
+
+  .seat { position: absolute; width: 150px; transform: translate(-50%, -50%);
+    background: rgba(20,24,30,.85); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+  .seat.active { border-color: var(--chip); box-shadow: 0 0 0 2px rgba(88,166,255,.25); }
+  .seat.folded { opacity: .4; }
+  .seat.hero { border-color: var(--accent); }
+  .seat .row { display: flex; justify-content: space-between; gap: 4px; align-items: center; }
+  .seat .name { font-size: 12px; font-weight: 600; max-width: 90px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .seat .pos { font-size: 10px; color: var(--mute); }
+  .seat .stack { font-size: 11px; color: var(--chip); font-weight: 600; }
+  .seat .bet { font-size: 10px; color: var(--warn); }
+  .seat .holecards { display: flex; gap: 3px; margin-top: 4px; justify-content: center; }
+  .seat .last { font-size: 10px; color: var(--mute); margin-top: 2px; min-height: 12px; }
+  .dealer-btn { position: absolute; width: 22px; height: 22px; background: #fff; color: #111;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 11px; transform: translate(-50%, -50%);
+    box-shadow: 0 2px 4px rgba(0,0,0,.6); }
+
+  /* Action panel */
+  .street-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .street-tabs button { padding: 4px 10px; font-size: 12px; }
+  .street-tabs button.active { background: var(--chip); border-color: var(--chip); color: #0e1116; font-weight: 600; }
+  .action-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center;
+    padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .action-row:last-child { border-bottom: none; }
+  .action-row .who { font-size: 12px; }
+  .action-row .what { font-size: 12px; color: var(--warn); font-weight: 600; }
+  .action-row .amt { font-size: 12px; color: var(--chip); font-weight: 600; }
+
+  .quick-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 6px; }
+  .quick-actions button { font-size: 11px; padding: 4px; }
+
+  .player-list { display: grid; gap: 4px; }
+  .player-list .p { display: grid; grid-template-columns: 24px 1fr 80px 70px; gap: 6px; align-items: center;
+    padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+  .player-list .p.dim { opacity: .35; }
+  .player-list .p .seat-num { color: var(--mute); font-size: 11px; text-align: center; }
+  .player-list .p .nm { font-size: 12px; font-weight: 600; }
+  .player-list .p .pos { font-size: 10px; color: var(--mute); }
+  .player-list .p .st { font-size: 11px; color: var(--chip); text-align: right; }
+  .player-list .p .bt { font-size: 11px; }
+
+  .tag { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 4px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--mute); margin-right: 4px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+    align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px; width: 100%; max-width: 700px; max-height: 90vh; overflow: auto; }
+  .modal h2 { margin-top: 0; }
+
+  .card-picker { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; margin-top: 6px; }
+  .card-picker .pick { padding: 4px 0; text-align: center; font-size: 11px; cursor: pointer;
+    border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); user-select: none; }
+  .card-picker .pick:hover { border-color: var(--chip); }
+  .card-picker .pick.used { opacity: .25; cursor: not-allowed; }
+  .card-picker .pick.red { color: #ff6b5d; }
+  .suit-tabs { display: flex; gap: 4px; margin-top: 8px; }
+  .suit-tabs button.active { background: var(--chip); border-color: var(--chip); color: #0e1116; }
+
+  .hand-history { max-height: 300px; overflow: auto; }
+  .hand-history .h { padding: 6px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .hand-history .h:hover { background: var(--panel-2); }
+  .hand-history .h .ttl { font-weight: 600; font-size: 13px; }
+  .hand-history .h .sm { font-size: 11px; color: var(--mute); }
+
+  textarea { width: 100%; min-height: 60px; resize: vertical; }
+  details > summary { cursor: pointer; padding: 4px 0; font-size: 12px; color: var(--mute); }
+  .pill { padding: 2px 6px; border-radius: 10px; background: var(--panel-2); font-size: 10px; border: 1px solid var(--line); }
+  .pill.bb { background: #5a3a00; border-color: #5a3a00; }
+  .pill.sb { background: #3a3a3a; border-color: #3a3a3a; }
+  .pill.btn { background: #0a4a82; border-color: #0a4a82; }
+
+  .help { font-size: 11px; color: var(--mute); margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🃏 Tournament Hold'em Notes</h1>
+  <span class="meta" id="tourneyLabel"></span>
+  <span style="flex:1"></span>
+  <button id="btnSetup" class="ghost">Tournament Setup</button>
+  <button id="btnNewHand" class="primary">+ New Hand</button>
+  <button id="btnExport" class="ghost">Export</button>
+  <button id="btnImport" class="ghost">Import</button>
+  <input type="file" id="fileImport" style="display:none" accept="application/json" />
+</header>
+
+<main>
+  <section>
+    <div class="panel">
+      <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+        <div>
+          <span class="tag">Hand <span id="handNum">—</span></span>
+          <span class="tag">Level <span id="levelLabel">—</span></span>
+          <span class="tag">Blinds <span id="blindsLabel">—</span></span>
+          <span class="tag">Ante <span id="anteLabel">—</span></span>
+        </div>
+        <div>
+          <button id="btnAdvanceLevel" class="ghost">Next Level</button>
+          <button id="btnRotateBtn" class="ghost">Move Button →</button>
+        </div>
+      </div>
+      <div class="table-wrap" id="table"></div>
+
+      <div class="street-tabs" style="margin-top: 10px;">
+        <button data-street="preflop" class="active">Preflop</button>
+        <button data-street="flop">Flop</button>
+        <button data-street="turn">Turn</button>
+        <button data-street="river">River</button>
+        <button data-street="showdown">Showdown</button>
+      </div>
+
+      <div id="streetPanel"></div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>Players (seats &amp; stacks)</h2>
+      <div id="playerList" class="player-list"></div>
+      <div class="help">Click a name to edit. Click 🃏 to set hole cards. Click 📝 to edit persistent reads.</div>
+    </div>
+
+    <div class="panel" style="margin-top: 12px;">
+      <h2>Hand History</h2>
+      <div id="handHistory" class="hand-history"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- Tournament setup modal -->
+<div class="modal-bg" id="setupModal">
+  <div class="modal">
+    <h2>Tournament Setup</h2>
+    <div class="grid-2">
+      <div>
+        <label>Tournament name</label>
+        <input id="cfgName" />
+      </div>
+      <div>
+        <label>Starting stack</label>
+        <input id="cfgStart" type="number" />
+      </div>
+    </div>
+    <h3 style="font-size:13px;color:var(--mute);margin-top:14px;">Blind structure</h3>
+    <div id="blindRows"></div>
+    <button id="btnAddLevel" class="ghost" style="margin-top:6px;">+ Add Level</button>
+
+    <h3 style="font-size:13px;color:var(--mute);margin-top:14px;">Players (9 seats)</h3>
+    <div id="playerRows"></div>
+
+    <div class="row" style="margin-top: 14px; justify-content: flex-end;">
+      <button id="btnResetAll" class="bad ghost">Reset Everything</button>
+      <span style="flex:1"></span>
+      <button id="btnSetupCancel" class="ghost">Cancel</button>
+      <button id="btnSetupSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Card picker modal -->
+<div class="modal-bg" id="cardModal">
+  <div class="modal" style="max-width:520px;">
+    <h2 id="cardModalTitle">Pick card</h2>
+    <div class="suit-tabs" id="suitTabs">
+      <button data-suit="s" class="active">♠ Spades</button>
+      <button data-suit="h">♥ Hearts</button>
+      <button data-suit="d">♦ Diamonds</button>
+      <button data-suit="c">♣ Clubs</button>
+    </div>
+    <div class="card-picker" id="cardPicker"></div>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <button id="btnClearCard" class="ghost">Clear</button>
+      <button id="btnCardCancel" class="ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notes modal -->
+<div class="modal-bg" id="notesModal">
+  <div class="modal">
+    <h2 id="notesTitle">Player notes</h2>
+    <label>Persistent reads (carry across all hands)</label>
+    <textarea id="notesPersistent"></textarea>
+    <label style="margin-top:8px;">This hand's notes</label>
+    <textarea id="notesHand"></textarea>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <button id="btnNotesCancel" class="ghost">Cancel</button>
+      <button id="btnNotesSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action modal -->
+<div class="modal-bg" id="actionModal">
+  <div class="modal" style="max-width:420px;">
+    <h2 id="actionTitle">Record action</h2>
+    <div class="row">
+      <button data-act="fold" class="bad">Fold</button>
+      <button data-act="check">Check</button>
+      <button data-act="call">Call</button>
+      <button data-act="bet">Bet</button>
+      <button data-act="raise" class="warn">Raise</button>
+      <button data-act="allin" class="primary">All-in</button>
+    </div>
+    <div style="margin-top: 10px;">
+      <label>Amount (chips put in this street total)</label>
+      <input id="actAmount" type="number" />
+      <div class="help" id="actHelp"></div>
+    </div>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <button id="btnActCancel" class="ghost">Cancel</button>
+      <button id="btnActSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hand viewer modal -->
+<div class="modal-bg" id="viewModal">
+  <div class="modal">
+    <h2 id="viewTitle">Hand</h2>
+    <div id="viewBody"></div>
+    <div class="row" style="justify-content: flex-end; margin-top: 12px;">
+      <button id="btnViewDelete" class="bad ghost">Delete hand</button>
+      <span style="flex:1"></span>
+      <button id="btnViewClose" class="ghost">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Tournament Hold'em Notes — 9-handed, every action recorded.
+   Self-contained single-page app. State persisted to localStorage.
+   ============================================================ */
+
+const RANKS = ['2','3','4','5','6','7','8','9','T','J','Q','K','A'];
+const SUITS = ['s','h','d','c'];
+const SUIT_GLYPH = {s:'♠', h:'♥', d:'♦', c:'♣'};
+const POSITION_NAMES_9 = ['BTN','SB','BB','UTG','UTG+1','MP','LJ','HJ','CO']; // offsets from button
+
+const LS_KEY = 'thnotes.v1';
+
+const defaultBlinds = [
+  {sb: 25,  bb: 50,  ante: 0},
+  {sb: 50,  bb: 100, ante: 0},
+  {sb: 75,  bb: 150, ante: 0},
+  {sb: 100, bb: 200, ante: 25},
+  {sb: 150, bb: 300, ante: 50},
+  {sb: 200, bb: 400, ante: 50},
+  {sb: 300, bb: 600, ante: 75},
+  {sb: 400, bb: 800, ante: 100},
+];
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return freshState();
+}
+function freshState() {
+  const players = [];
+  for (let i = 0; i < 9; i++) {
+    players.push({ seat: i+1, name: 'Seat '+(i+1), stack: 10000, persistentNotes: '', alive: true });
+  }
+  return {
+    tourney: {
+      name: 'Home Game',
+      startingStack: 10000,
+      blinds: structuredClone(defaultBlinds),
+      level: 0,
+      buttonSeat: 1,
+      handCounter: 0,
+    },
+    players,
+    currentHand: null,
+    hands: [],
+  };
+}
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+let state = loadState();
+
+/* ---------- Hand model ----------
+hand = {
+  id, number, ts, level, sb, bb, ante, buttonSeat,
+  seats: [{ seat, name, startingStack, position, holeCards: [c1,c2]|null, isInHand: true|false, foldedOnStreet: 'preflop'|... }],
+  streets: {
+    preflop:  { board: [], actions: [{seat, act, amount, runningPot}], pot: 0 },
+    flop:     { board: [c,c,c], actions: [], pot: 0 },
+    turn:     { board: [c], actions: [], pot: 0 },
+    river:    { board: [c], actions: [], pot: 0 },
+  },
+  currentStreet: 'preflop',
+  showdown: { winners: [seatNumbers], description: '', muckedHands: {} },
+  notes: '',
+}
+*/
+
+function activeSeats(hand) {
+  return hand.seats.filter(s => s.isInHand);
+}
+
+function newHand() {
+  const t = state.tourney;
+  const lvl = t.blinds[t.level] || t.blinds[t.blinds.length-1];
+  t.handCounter += 1;
+  const hand = {
+    id: 'h_' + Date.now(),
+    number: t.handCounter,
+    ts: new Date().toISOString(),
+    level: t.level,
+    sb: lvl.sb, bb: lvl.bb, ante: lvl.ante,
+    buttonSeat: t.buttonSeat,
+    seats: [],
+    streets: {
+      preflop: { board: [], actions: [], pot: 0 },
+      flop:    { board: [], actions: [], pot: 0 },
+      turn:    { board: [], actions: [], pot: 0 },
+      river:   { board: [], actions: [], pot: 0 },
+    },
+    currentStreet: 'preflop',
+    showdown: { winners: [], description: '', mucked: {} },
+    notes: '',
+  };
+  // Build seat snapshot
+  const order = seatOrderFromButton(t.buttonSeat);
+  for (let i = 0; i < 9; i++) {
+    const seatNum = order[i];
+    const p = state.players.find(pp => pp.seat === seatNum);
+    hand.seats.push({
+      seat: seatNum,
+      name: p.name,
+      startingStack: p.stack,
+      position: POSITION_NAMES_9[i],
+      holeCards: null,
+      isInHand: p.alive && p.stack > 0,
+      foldedOnStreet: null,
+      handNotes: '',
+    });
+  }
+  // Post antes & blinds as pre-actions in the preflop street
+  const sbSeat = order[1];
+  const bbSeat = order[2];
+  // Antes (BB ante from BB only? we'll do per-player ante for simplicity)
+  if (lvl.ante > 0) {
+    for (const s of hand.seats) {
+      if (!s.isInHand) continue;
+      const a = Math.min(lvl.ante, s.startingStack);
+      hand.streets.preflop.actions.push({seat: s.seat, act: 'ante', amount: a, note: 'ante'});
+      hand.streets.preflop.pot += a;
+    }
+  }
+  // SB
+  const sbSeatObj = hand.seats.find(s => s.seat === sbSeat);
+  if (sbSeatObj && sbSeatObj.isInHand) {
+    const a = Math.min(lvl.sb, sbSeatObj.startingStack);
+    hand.streets.preflop.actions.push({seat: sbSeat, act: 'sb', amount: a, note: 'small blind'});
+    hand.streets.preflop.pot += a;
+  }
+  // BB
+  const bbSeatObj = hand.seats.find(s => s.seat === bbSeat);
+  if (bbSeatObj && bbSeatObj.isInHand) {
+    const a = Math.min(lvl.bb, bbSeatObj.startingStack);
+    hand.streets.preflop.actions.push({seat: bbSeat, act: 'bb', amount: a, note: 'big blind'});
+    hand.streets.preflop.pot += a;
+  }
+  state.currentHand = hand;
+  save();
+  render();
+}
+
+function seatOrderFromButton(buttonSeat) {
+  // Returns 9 seat numbers starting at button, then SB, BB, UTG, ...
+  const out = [];
+  for (let i = 0; i < 9; i++) {
+    out.push(((buttonSeat - 1 + i) % 9) + 1);
+  }
+  return out;
+}
+
+function moneyInThisStreetForSeat(hand, street, seat) {
+  let total = 0;
+  for (const a of hand.streets[street].actions) {
+    if (a.seat === seat && ['call','bet','raise','allin','sb','bb','ante'].includes(a.act)) {
+      total += a.amount || 0;
+    }
+  }
+  return total;
+}
+
+function highestBetInStreet(hand, street) {
+  // ignore antes — but include sb, bb, calls, bets, raises, allin
+  const perSeat = {};
+  for (const a of hand.streets[street].actions) {
+    if (['call','bet','raise','allin','sb','bb'].includes(a.act)) {
+      perSeat[a.seat] = (perSeat[a.seat] || 0) + (a.amount || 0);
+    }
+  }
+  return Math.max(0, ...Object.values(perSeat));
+}
+
+function totalPutInThisHand(hand, seat) {
+  let t = 0;
+  for (const street of ['preflop','flop','turn','river']) {
+    for (const a of hand.streets[street].actions) {
+      if (a.seat === seat && ['call','bet','raise','allin','sb','bb','ante'].includes(a.act)) {
+        t += a.amount || 0;
+      }
+    }
+  }
+  return t;
+}
+
+function stackRemainingFor(hand, seat) {
+  const s = hand.seats.find(x => x.seat === seat);
+  if (!s) return 0;
+  return s.startingStack - totalPutInThisHand(hand, seat);
+}
+
+function totalPot(hand) {
+  let p = 0;
+  for (const street of ['preflop','flop','turn','river']) p += hand.streets[street].pot;
+  return p;
+}
+
+function lastActionFor(hand, seat) {
+  const order = ['preflop','flop','turn','river'];
+  for (let i = order.length - 1; i >= 0; i--) {
+    const acts = hand.streets[order[i]].actions;
+    for (let j = acts.length - 1; j >= 0; j--) {
+      if (acts[j].seat === seat && acts[j].act !== 'ante' && acts[j].act !== 'sb' && acts[j].act !== 'bb') {
+        return { street: order[i], action: acts[j] };
+      }
+    }
+  }
+  return null;
+}
+
+function recordAction(seat, act, amount) {
+  const hand = state.currentHand;
+  if (!hand) return;
+  const street = hand.currentStreet;
+  if (street === 'showdown') return;
+  const seatObj = hand.seats.find(s => s.seat === seat);
+  if (!seatObj || !seatObj.isInHand) return;
+
+  amount = Number(amount) || 0;
+  const alreadyIn = moneyInThisStreetForSeat(hand, street, seat);
+
+  // Interpret amount: for bet/raise/call/allin, amount is the chips put in for THIS action (delta).
+  // We'll let the user type that directly.
+  let delta = amount;
+  if (act === 'fold' || act === 'check') delta = 0;
+
+  // Cap to stack
+  const stackLeft = stackRemainingFor(hand, seat);
+  if (delta > stackLeft) delta = stackLeft;
+
+  hand.streets[street].actions.push({ seat, act, amount: delta });
+  hand.streets[street].pot += delta;
+
+  if (act === 'fold') {
+    seatObj.isInHand = false;
+    seatObj.foldedOnStreet = street;
+  }
+  if (act === 'allin' && stackRemainingFor(hand, seat) <= 0) {
+    seatObj.allIn = true;
+  }
+  save(); render();
+}
+
+function undoLastAction() {
+  const hand = state.currentHand;
+  if (!hand) return;
+  const street = hand.currentStreet;
+  const acts = hand.streets[street].actions;
+  if (!acts.length) return;
+  const a = acts.pop();
+  hand.streets[street].pot -= a.amount || 0;
+  if (a.act === 'fold') {
+    const s = hand.seats.find(x => x.seat === a.seat);
+    if (s) { s.isInHand = true; s.foldedOnStreet = null; }
+  }
+  save(); render();
+}
+
+function setStreet(street) {
+  const hand = state.currentHand;
+  if (!hand) return;
+  hand.currentStreet = street;
+  save(); render();
+}
+
+function setBoardCard(street, idx, card) {
+  const hand = state.currentHand;
+  if (!hand) return;
+  const arr = hand.streets[street].board;
+  while (arr.length <= idx) arr.push(null);
+  arr[idx] = card;
+  save(); render();
+}
+
+function endHand({ winners, description }) {
+  const hand = state.currentHand;
+  if (!hand) return;
+  hand.showdown.winners = winners.slice();
+  hand.showdown.description = description || '';
+  // Settle stacks: each player loses what they put in. Winners split the pot.
+  const pot = totalPot(hand);
+  for (const s of hand.seats) {
+    const p = state.players.find(pp => pp.seat === s.seat);
+    if (!p) continue;
+    p.stack = s.startingStack - totalPutInThisHand(hand, s.seat);
+  }
+  if (winners.length) {
+    const share = Math.floor(pot / winners.length);
+    const remainder = pot - share * winners.length;
+    winners.forEach((seat, i) => {
+      const p = state.players.find(pp => pp.seat === seat);
+      if (p) p.stack += share + (i === 0 ? remainder : 0);
+    });
+  }
+  // Mark dead stacks
+  for (const p of state.players) {
+    if (p.stack <= 0) p.alive = false;
+  }
+  // Archive
+  state.hands.unshift(hand);
+  state.currentHand = null;
+  // Auto-rotate the button
+  rotateButton();
+  save(); render();
+}
+
+function rotateButton() {
+  const t = state.tourney;
+  // find next alive seat after current button
+  let s = t.buttonSeat;
+  for (let i = 0; i < 9; i++) {
+    s = (s % 9) + 1;
+    const p = state.players.find(pp => pp.seat === s);
+    if (p && p.alive && p.stack > 0) { t.buttonSeat = s; break; }
+  }
+}
+
+/* ---------------- Rendering ---------------- */
+
+function $(sel) { return document.querySelector(sel); }
+function el(tag, attrs={}, children=[]) {
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'html') e.innerHTML = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+
+function cardEl(card, opts={}) {
+  if (!card) {
+    return el('div', {class:'card empty' + (opts.mini?' mini':''), html: opts.placeholder || '?'});
+  }
+  const r = card[0], s = card[1];
+  const red = (s === 'h' || s === 'd');
+  return el('div', {class:'card' + (red?' red':'') + (opts.mini?' mini':'')}, [
+    el('span', {}, r),
+    el('span', {style:'font-size:11px;'}, SUIT_GLYPH[s]),
+  ]);
+}
+
+function render() {
+  renderHeader();
+  renderTable();
+  renderPlayerList();
+  renderHandHistory();
+  renderStreetPanel();
+}
+
+function renderHeader() {
+  const t = state.tourney;
+  $('#tourneyLabel').textContent = `${t.name} · ${state.players.filter(p => p.alive && p.stack > 0).length}/9 alive · Button: Seat ${t.buttonSeat}`;
+  const lvl = t.blinds[t.level] || {sb:0,bb:0,ante:0};
+  $('#handNum').textContent = state.currentHand ? state.currentHand.number : '—';
+  $('#levelLabel').textContent = (t.level + 1);
+  $('#blindsLabel').textContent = `${lvl.sb}/${lvl.bb}`;
+  $('#anteLabel').textContent = lvl.ante;
+}
+
+function renderTable() {
+  const wrap = $('#table');
+  wrap.innerHTML = '';
+  const hand = state.currentHand;
+  // Board
+  const board = el('div', {class:'board'});
+  if (hand) {
+    board.appendChild(el('div', {class:'pot'}, '$ ' + totalPot(hand).toLocaleString()));
+    const slots = [
+      hand.streets.flop.board[0],
+      hand.streets.flop.board[1],
+      hand.streets.flop.board[2],
+      hand.streets.turn.board[0],
+      hand.streets.river.board[0],
+    ];
+    const labels = ['F1','F2','F3','T','R'];
+    slots.forEach((c, i) => {
+      const node = cardEl(c, {placeholder: labels[i]});
+      node.style.cursor = 'pointer';
+      node.addEventListener('click', () => {
+        const street = i < 3 ? 'flop' : i === 3 ? 'turn' : 'river';
+        const idx = i < 3 ? i : 0;
+        openCardPicker({title:`Set ${labels[i]}`, current: c, onPick: card => setBoardCard(street, idx, card), onClear: () => setBoardCard(street, idx, null)});
+      });
+      board.appendChild(node);
+    });
+  } else {
+    board.appendChild(el('div', {class:'pot'}, 'No hand in progress'));
+  }
+  wrap.appendChild(board);
+
+  // Seats around oval
+  // 9 seats: positions around an ellipse
+  const positions = [];
+  // start at bottom (hero position) and go clockwise
+  // we use 9 angles evenly distributed
+  for (let i = 0; i < 9; i++) {
+    const angle = (Math.PI * 2 * i / 9) - Math.PI / 2; // start at top
+    // shift so seat 1 is at bottom-right area
+    const a = angle + Math.PI; // start at bottom
+    positions.push(a);
+  }
+
+  const seats = hand ? hand.seats.map(s => ({
+    seat: s.seat, name: s.name, stack: s.startingStack - totalPutInThisHand(hand, s.seat),
+    position: s.position, isInHand: s.isInHand, holeCards: s.holeCards,
+    bet: moneyInThisStreetForSeat(hand, hand.currentStreet, s.seat),
+    last: lastActionFor(hand, s.seat),
+  })) : state.players.map(p => ({
+    seat: p.seat, name: p.name, stack: p.stack, position: '', isInHand: p.alive && p.stack > 0,
+    holeCards: null, bet: 0, last: null,
+  }));
+
+  // sort seats so they appear in seat-number order around the table starting bottom-center going clockwise
+  seats.sort((a,b) => a.seat - b.seat);
+
+  seats.forEach((s, i) => {
+    const a = positions[i];
+    const cx = 50 + 42 * Math.cos(a);
+    const cy = 50 + 42 * Math.sin(a);
+    const seatDiv = el('div', {
+      class: 'seat' + (!s.isInHand?' folded':''),
+      style: `left:${cx}%; top:${cy}%;`,
+    });
+    const head = el('div', {class:'row'}, [
+      el('div', {class:'name', title: s.name}, s.name + ' (' + s.seat + ')'),
+      el('div', {class:'stack'}, s.stack.toLocaleString()),
+    ]);
+    seatDiv.appendChild(head);
+    seatDiv.appendChild(el('div', {class:'row'}, [
+      el('span', {class:'pos'}, s.position || ''),
+      el('span', {class:'bet'}, s.bet ? ('bet ' + s.bet.toLocaleString()) : ''),
+    ]));
+    // Hole cards
+    if (hand) {
+      const hc = el('div', {class:'holecards'});
+      const c1 = (s.holeCards && s.holeCards[0]) || null;
+      const c2 = (s.holeCards && s.holeCards[1]) || null;
+      const n1 = cardEl(c1, {mini:true, placeholder:'?'});
+      const n2 = cardEl(c2, {mini:true, placeholder:'?'});
+      n1.style.cursor = 'pointer'; n2.style.cursor = 'pointer';
+      n1.addEventListener('click', () => openCardPicker({title:`${s.name} card 1`, current: c1, onPick: card => {
+        const so = hand.seats.find(x => x.seat === s.seat);
+        so.holeCards = so.holeCards || [null,null];
+        so.holeCards[0] = card; save(); render();
+      }, onClear: () => {
+        const so = hand.seats.find(x => x.seat === s.seat);
+        if (so.holeCards) so.holeCards[0] = null; save(); render();
+      }}));
+      n2.addEventListener('click', () => openCardPicker({title:`${s.name} card 2`, current: c2, onPick: card => {
+        const so = hand.seats.find(x => x.seat === s.seat);
+        so.holeCards = so.holeCards || [null,null];
+        so.holeCards[1] = card; save(); render();
+      }, onClear: () => {
+        const so = hand.seats.find(x => x.seat === s.seat);
+        if (so.holeCards) so.holeCards[1] = null; save(); render();
+      }}));
+      hc.appendChild(n1); hc.appendChild(n2);
+      seatDiv.appendChild(hc);
+    }
+    const lastTxt = s.last ? `${s.last.street}: ${s.last.action.act}${s.last.action.amount?' '+s.last.action.amount.toLocaleString():''}` : '';
+    seatDiv.appendChild(el('div', {class:'last'}, lastTxt));
+    if (hand) {
+      const acts = el('div', {class:'row', style:'margin-top:4px;justify-content:center;'}, [
+        el('button', {style:'padding:2px 6px;font-size:10px;', onclick: () => openActionModal(s.seat)}, 'Action'),
+      ]);
+      seatDiv.appendChild(acts);
+    }
+    wrap.appendChild(seatDiv);
+
+    // dealer button marker
+    if (hand && s.seat === hand.buttonSeat) {
+      const bx = 50 + 35 * Math.cos(a);
+      const by = 50 + 35 * Math.sin(a);
+      wrap.appendChild(el('div', {class:'dealer-btn', style:`left:${bx}%; top:${by}%;`}, 'D'));
+    } else if (!hand && s.seat === state.tourney.buttonSeat) {
+      const bx = 50 + 35 * Math.cos(a);
+      const by = 50 + 35 * Math.sin(a);
+      wrap.appendChild(el('div', {class:'dealer-btn', style:`left:${bx}%; top:${by}%;`}, 'D'));
+    }
+  });
+}
+
+function renderPlayerList() {
+  const list = $('#playerList');
+  list.innerHTML = '';
+  const hand = state.currentHand;
+  for (const p of state.players) {
+    const inHand = hand ? hand.seats.find(s => s.seat === p.seat)?.isInHand : (p.alive && p.stack>0);
+    const pos = hand ? hand.seats.find(s => s.seat === p.seat)?.position : '';
+    const row = el('div', {class:'p' + (!inHand && hand?' dim':'')}, [
+      el('div', {class:'seat-num'}, String(p.seat)),
+      el('div', {}, [
+        el('div', {class:'nm', style:'cursor:pointer;', onclick: () => editPlayerName(p.seat)}, p.name),
+        el('div', {class:'pos'}, pos || (p.alive?'':'busted')),
+      ]),
+      el('div', {class:'st'}, p.stack.toLocaleString()),
+      el('div', {class:'bt', style:'display:flex; gap:3px; justify-content:flex-end;'}, [
+        el('button', {title:'Edit notes', onclick: () => openNotesModal(p.seat), style:'padding:2px 6px;font-size:11px;'}, '📝'),
+        hand ? el('button', {title:'Set hole cards', onclick: () => setHoleCardsFlow(p.seat), style:'padding:2px 6px;font-size:11px;'}, '🃏') : null,
+      ]),
+    ]);
+    list.appendChild(row);
+  }
+}
+
+function setHoleCardsFlow(seat) {
+  const hand = state.currentHand;
+  if (!hand) return;
+  const so = hand.seats.find(x => x.seat === seat);
+  so.holeCards = so.holeCards || [null,null];
+  openCardPicker({title:`${so.name} card 1`, current: so.holeCards[0], onPick: c => {
+    so.holeCards[0] = c; save(); render();
+    openCardPicker({title:`${so.name} card 2`, current: so.holeCards[1], onPick: c2 => {
+      so.holeCards[1] = c2; save(); render();
+    }, onClear: () => { so.holeCards[1]=null; save(); render(); }});
+  }, onClear: () => { so.holeCards[0]=null; save(); render(); }});
+}
+
+function editPlayerName(seat) {
+  const p = state.players.find(pp => pp.seat === seat);
+  const name = prompt('Player name for seat ' + seat, p.name);
+  if (name == null) return;
+  p.name = name.trim() || ('Seat ' + seat);
+  // also update current hand seat name
+  if (state.currentHand) {
+    const so = state.currentHand.seats.find(x => x.seat === seat);
+    if (so) so.name = p.name;
+  }
+  save(); render();
+}
+
+function renderHandHistory() {
+  const list = $('#handHistory');
+  list.innerHTML = '';
+  if (!state.hands.length) {
+    list.appendChild(el('div', {class:'help', style:'padding:6px;'}, 'No hands recorded yet. Click "+ New Hand" to start.'));
+    return;
+  }
+  for (const h of state.hands) {
+    const winners = h.showdown.winners.map(s => h.seats.find(x => x.seat === s)?.name || ('Seat '+s));
+    const summary = winners.length ? `${winners.join(', ')} won ${totalPot(h).toLocaleString()}` : `pot ${totalPot(h).toLocaleString()}`;
+    const node = el('div', {class:'h', onclick: () => openHandViewer(h.id)}, [
+      el('div', {class:'ttl'}, `Hand #${h.number} — L${h.level+1} ${h.sb}/${h.bb}`),
+      el('div', {class:'sm'}, `${new Date(h.ts).toLocaleString()} · ${summary}`),
+    ]);
+    list.appendChild(node);
+  }
+}
+
+function renderStreetPanel() {
+  const root = $('#streetPanel');
+  root.innerHTML = '';
+  const hand = state.currentHand;
+  if (!hand) {
+    root.appendChild(el('div', {class:'help'}, 'No hand in progress. Click "+ New Hand" to deal a new hand.'));
+    return;
+  }
+
+  // sync tabs
+  document.querySelectorAll('.street-tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.street === hand.currentStreet);
+  });
+
+  if (hand.currentStreet === 'showdown') {
+    renderShowdown(root); return;
+  }
+
+  // Show next-to-act helper
+  const order = nextToActOrder(hand);
+  const next = order[0];
+  if (next != null) {
+    const so = hand.seats.find(s => s.seat === next);
+    root.appendChild(el('div', {class:'row', style:'margin-bottom:8px;'}, [
+      el('span', {class:'tag'}, `Next to act: ${so.name} (${so.position})`),
+      el('button', {class:'primary', onclick: () => openActionModal(next)}, 'Record action'),
+      el('button', {class:'ghost', onclick: undoLastAction}, 'Undo'),
+      el('span', {style:'flex:1'}, ''),
+      hand.currentStreet !== 'river'
+        ? el('button', {onclick: () => advanceStreet()}, 'Next street →')
+        : el('button', {class:'warn', onclick: () => setStreet('showdown')}, 'Go to showdown →'),
+    ]));
+  } else {
+    root.appendChild(el('div', {class:'row', style:'margin-bottom:8px;'}, [
+      el('span', {class:'tag'}, `Action complete on ${hand.currentStreet}`),
+      hand.currentStreet !== 'river'
+        ? el('button', {class:'primary', onclick: () => advanceStreet()}, 'Next street →')
+        : el('button', {class:'primary warn', onclick: () => setStreet('showdown')}, 'Go to showdown →'),
+      el('button', {class:'ghost', onclick: undoLastAction}, 'Undo'),
+    ]));
+  }
+
+  // Action log
+  const street = hand.currentStreet;
+  const log = el('div', {});
+  log.appendChild(el('h2', {}, street.toUpperCase() + ' actions'));
+  if (!hand.streets[street].actions.length) {
+    log.appendChild(el('div', {class:'help'}, 'No actions yet.'));
+  } else {
+    for (const a of hand.streets[street].actions) {
+      const so = hand.seats.find(x => x.seat === a.seat);
+      log.appendChild(el('div', {class:'action-row'}, [
+        el('div', {class:'who'}, `${so.name} (${so.position}, seat ${a.seat})`),
+        el('div', {class:'what'}, a.act),
+        el('div', {class:'amt'}, a.amount ? a.amount.toLocaleString() : '—'),
+        el('div', {class:'sm'}, a.note || ''),
+      ]));
+    }
+  }
+  root.appendChild(log);
+
+  // Quick action grid for active seats
+  const quick = el('div', {style:'margin-top:8px;'}, []);
+  quick.appendChild(el('h2', {}, 'Quick action by seat'));
+  const grid = el('div', {class:'quick-actions'});
+  for (const s of hand.seats) {
+    if (!s.isInHand) continue;
+    const btn = el('button', {onclick: () => openActionModal(s.seat)}, `${s.position} S${s.seat}`);
+    grid.appendChild(btn);
+  }
+  quick.appendChild(grid);
+  root.appendChild(quick);
+}
+
+/* nextToActOrder: starting after the last aggressor (or after BB on preflop), going clockwise,
+   list seats that haven't matched the current bet and are still in hand. */
+function nextToActOrder(hand) {
+  const street = hand.currentStreet;
+  const acts = hand.streets[street].actions;
+  const order = seatOrderFromButton(hand.buttonSeat);
+  // Filter to seats in hand
+  const inHandSeats = order.filter(s => hand.seats.find(x => x.seat === s).isInHand);
+
+  let startIdx;
+  if (street === 'preflop') {
+    // First voluntary action is UTG (3 seats after button = index 3)
+    // Find UTG: order[3], skip folded
+    startIdx = 3 % inHandSeats.length;
+    // Need to convert — easier: start from order[3] within order, then find those still in hand
+  } else {
+    // SB acts first if in hand, else next clockwise
+    startIdx = 1 % inHandSeats.length;
+  }
+
+  // We want list of seats who still owe action: haven't acted since last bet/raise OR there is no bet and they haven't checked.
+  const highBet = highestBetInStreet(hand, street);
+  const myBet = {}; const lastVoluntary = {};
+  for (const s of inHandSeats) { myBet[s] = 0; lastVoluntary[s] = null; }
+  for (const a of acts) {
+    if (['call','bet','raise','allin','sb','bb'].includes(a.act)) {
+      myBet[a.seat] = (myBet[a.seat] || 0) + (a.amount || 0);
+    }
+    if (['call','bet','raise','allin','check','fold'].includes(a.act)) {
+      lastVoluntary[a.seat] = a.act;
+    }
+  }
+  // seats that owe action: in hand & ((myBet < highBet) OR (highBet === 0 && lastVoluntary == null))
+  // But on preflop, even if BB matches highBet (because they posted bb), they still get an option if no raise.
+  const owe = [];
+  for (const s of inHandSeats) {
+    if (myBet[s] < highBet) { owe.push(s); continue; }
+    if (highBet === 0 && lastVoluntary[s] == null) { owe.push(s); continue; }
+    if (street === 'preflop' && highBet === hand.bb && s === seatOrderFromButton(hand.buttonSeat)[2]
+        && lastVoluntary[s] == null) {
+      // BB hasn't had option yet
+      owe.push(s); continue;
+    }
+  }
+  // Order them starting from after last actor, clockwise
+  let lastActor = acts.length ? acts[acts.length-1].seat : null;
+  let startSeat;
+  if (lastActor != null) {
+    const idx = order.indexOf(lastActor);
+    startSeat = order[(idx+1) % 9];
+  } else {
+    startSeat = street === 'preflop' ? order[3] : order[1]; // UTG or SB
+  }
+  // walk
+  const result = [];
+  let cur = startSeat;
+  for (let i = 0; i < 18 && result.length < owe.length; i++) {
+    if (owe.includes(cur) && !result.includes(cur)) result.push(cur);
+    cur = order[(order.indexOf(cur)+1) % 9];
+  }
+  return result;
+}
+
+function advanceStreet() {
+  const hand = state.currentHand;
+  if (!hand) return;
+  const seq = ['preflop','flop','turn','river','showdown'];
+  const idx = seq.indexOf(hand.currentStreet);
+  if (idx < 0 || idx >= seq.length-1) return;
+  hand.currentStreet = seq[idx+1];
+  save(); render();
+}
+
+function renderShowdown(root) {
+  const hand = state.currentHand;
+  root.appendChild(el('h2', {}, 'Showdown / Result'));
+  const inHand = hand.seats.filter(s => s.isInHand);
+  const grid = el('div', {class:'grid-2'});
+  for (const s of inHand) {
+    const isWinner = hand.showdown.winners.includes(s.seat);
+    const btn = el('button', {
+      class: isWinner ? 'primary' : 'ghost',
+      onclick: () => {
+        if (isWinner) hand.showdown.winners = hand.showdown.winners.filter(x => x !== s.seat);
+        else hand.showdown.winners.push(s.seat);
+        save(); render();
+      },
+    }, `${isWinner?'★ ':''}${s.name} (S${s.seat})`);
+    grid.appendChild(btn);
+  }
+  root.appendChild(grid);
+
+  root.appendChild(el('label', {style:'margin-top:10px;'}, 'Description (e.g., "AA > KK preflop allin")'));
+  const desc = el('input', {value: hand.showdown.description || '', oninput: (e) => {
+    hand.showdown.description = e.target.value; save();
+  }});
+  root.appendChild(desc);
+
+  root.appendChild(el('label', {style:'margin-top:10px;'}, 'Hand notes / observations'));
+  const notes = el('textarea', {oninput: (e) => { hand.notes = e.target.value; save(); }}, hand.notes || '');
+  root.appendChild(notes);
+
+  root.appendChild(el('div', {class:'row', style:'margin-top:10px; justify-content:flex-end;'}, [
+    el('button', {class:'ghost', onclick: () => setStreet('river')}, '← back to river'),
+    el('button', {class:'primary', onclick: () => {
+      if (!hand.showdown.winners.length) {
+        if (!confirm('No winner selected. The pot will not be awarded. Continue?')) return;
+      }
+      endHand({winners: hand.showdown.winners, description: hand.showdown.description});
+    }}, 'Finish hand & save'),
+  ]));
+}
+
+/* ---------------- Modals ---------------- */
+
+let cardPickerCb = null;
+let cardPickerCurrent = null;
+let cardPickerSuit = 's';
+
+function usedCards() {
+  const used = new Set();
+  const hand = state.currentHand;
+  if (!hand) return used;
+  for (const s of hand.seats) {
+    if (s.holeCards) for (const c of s.holeCards) if (c) used.add(c);
+  }
+  for (const street of ['flop','turn','river']) {
+    for (const c of hand.streets[street].board) if (c) used.add(c);
+  }
+  return used;
+}
+
+function openCardPicker({title, current, onPick, onClear}) {
+  cardPickerCb = { onPick, onClear };
+  cardPickerCurrent = current;
+  cardPickerSuit = current ? current[1] : 's';
+  $('#cardModalTitle').textContent = title || 'Pick card';
+  document.querySelectorAll('#suitTabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.suit === cardPickerSuit);
+  });
+  renderCardPicker();
+  $('#cardModal').classList.add('open');
+}
+function renderCardPicker() {
+  const used = usedCards();
+  const wrap = $('#cardPicker');
+  wrap.innerHTML = '';
+  const suit = cardPickerSuit;
+  const red = (suit === 'h' || suit === 'd');
+  for (const r of RANKS) {
+    const card = r + suit;
+    const isUsed = used.has(card) && card !== cardPickerCurrent;
+    const node = el('div', {class:'pick' + (red?' red':'') + (isUsed?' used':''),
+      onclick: () => { if (!isUsed && cardPickerCb) { cardPickerCb.onPick(card); $('#cardModal').classList.remove('open'); } }
+    }, r + SUIT_GLYPH[suit]);
+    wrap.appendChild(node);
+  }
+}
+document.querySelectorAll('#suitTabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    cardPickerSuit = b.dataset.suit;
+    document.querySelectorAll('#suitTabs button').forEach(x => x.classList.toggle('active', x === b));
+    renderCardPicker();
+  });
+});
+$('#btnCardCancel').addEventListener('click', () => $('#cardModal').classList.remove('open'));
+$('#btnClearCard').addEventListener('click', () => {
+  if (cardPickerCb && cardPickerCb.onClear) cardPickerCb.onClear();
+  $('#cardModal').classList.remove('open');
+});
+
+/* Notes modal */
+let notesSeat = null;
+function openNotesModal(seat) {
+  notesSeat = seat;
+  const p = state.players.find(pp => pp.seat === seat);
+  $('#notesTitle').textContent = `Notes — ${p.name} (Seat ${seat})`;
+  $('#notesPersistent').value = p.persistentNotes || '';
+  const hand = state.currentHand;
+  const so = hand ? hand.seats.find(x => x.seat === seat) : null;
+  $('#notesHand').value = so ? (so.handNotes || '') : '';
+  $('#notesHand').disabled = !so;
+  $('#notesModal').classList.add('open');
+}
+$('#btnNotesCancel').addEventListener('click', () => $('#notesModal').classList.remove('open'));
+$('#btnNotesSave').addEventListener('click', () => {
+  const p = state.players.find(pp => pp.seat === notesSeat);
+  p.persistentNotes = $('#notesPersistent').value;
+  const hand = state.currentHand;
+  if (hand) {
+    const so = hand.seats.find(x => x.seat === notesSeat);
+    if (so) so.handNotes = $('#notesHand').value;
+  }
+  save(); render();
+  $('#notesModal').classList.remove('open');
+});
+
+/* Action modal */
+let actSeat = null;
+let actChosen = null;
+function openActionModal(seat) {
+  actSeat = seat; actChosen = null;
+  const hand = state.currentHand;
+  const so = hand.seats.find(x => x.seat === seat);
+  $('#actionTitle').textContent = `${so.name} (Seat ${seat}, ${so.position}) — ${hand.currentStreet}`;
+  $('#actAmount').value = '';
+  const stackLeft = stackRemainingFor(hand, seat);
+  const high = highestBetInStreet(hand, hand.currentStreet);
+  const myIn = moneyInThisStreetForSeat(hand, hand.currentStreet, seat);
+  const toCall = Math.max(0, high - myIn);
+  $('#actHelp').textContent = `Stack left: ${stackLeft.toLocaleString()} · To call: ${toCall.toLocaleString()} · Pot: ${totalPot(hand).toLocaleString()}`;
+  document.querySelectorAll('#actionModal [data-act]').forEach(b => b.classList.remove('primary'));
+  $('#actionModal').classList.add('open');
+}
+document.querySelectorAll('#actionModal [data-act]').forEach(b => {
+  b.addEventListener('click', () => {
+    actChosen = b.dataset.act;
+    document.querySelectorAll('#actionModal [data-act]').forEach(x => x.classList.toggle('primary', x === b));
+    // pre-fill amount
+    const hand = state.currentHand;
+    const high = highestBetInStreet(hand, hand.currentStreet);
+    const myIn = moneyInThisStreetForSeat(hand, hand.currentStreet, actSeat);
+    const toCall = Math.max(0, high - myIn);
+    const stackLeft = stackRemainingFor(hand, actSeat);
+    if (actChosen === 'call') $('#actAmount').value = Math.min(toCall, stackLeft);
+    else if (actChosen === 'fold' || actChosen === 'check') $('#actAmount').value = 0;
+    else if (actChosen === 'allin') $('#actAmount').value = stackLeft;
+    else if (actChosen === 'bet') $('#actAmount').value = Math.min(hand.bb * 2, stackLeft);
+    else if (actChosen === 'raise') $('#actAmount').value = Math.min(toCall + hand.bb * 2, stackLeft);
+  });
+});
+$('#btnActCancel').addEventListener('click', () => $('#actionModal').classList.remove('open'));
+$('#btnActSave').addEventListener('click', () => {
+  if (!actChosen) { alert('Pick an action.'); return; }
+  recordAction(actSeat, actChosen, $('#actAmount').value);
+  $('#actionModal').classList.remove('open');
+});
+
+/* Street tabs */
+document.querySelectorAll('.street-tabs button').forEach(b => {
+  b.addEventListener('click', () => setStreet(b.dataset.street));
+});
+
+/* New hand / level / button rotation */
+$('#btnNewHand').addEventListener('click', () => {
+  if (state.currentHand) {
+    if (!confirm('A hand is in progress. Discard and start a new one?')) return;
+  }
+  newHand();
+});
+$('#btnAdvanceLevel').addEventListener('click', () => {
+  state.tourney.level = Math.min(state.tourney.blinds.length-1, state.tourney.level + 1);
+  save(); render();
+});
+$('#btnRotateBtn').addEventListener('click', () => {
+  rotateButton(); save(); render();
+});
+
+/* Hand viewer */
+let viewingHandId = null;
+function openHandViewer(id) {
+  viewingHandId = id;
+  const h = state.hands.find(x => x.id === id);
+  if (!h) return;
+  $('#viewTitle').textContent = `Hand #${h.number} — Level ${h.level+1} (${h.sb}/${h.bb}, ante ${h.ante})`;
+  const body = $('#viewBody');
+  body.innerHTML = '';
+  body.appendChild(el('div', {class:'help'}, new Date(h.ts).toLocaleString()));
+  const seatLine = h.seats.map(s => `S${s.seat} ${s.name} (${s.position}) ${s.startingStack.toLocaleString()}${s.holeCards?(' '+s.holeCards.filter(Boolean).join('')):''}`).join('  |  ');
+  body.appendChild(el('div', {class:'help', style:'margin:8px 0;'}, seatLine));
+
+  for (const street of ['preflop','flop','turn','river']) {
+    const sec = el('div', {style:'margin-top:8px;'});
+    sec.appendChild(el('h2', {}, street.toUpperCase()));
+    const board = h.streets[street].board.filter(Boolean);
+    if (board.length) {
+      const row = el('div', {class:'row'}, board.map(c => cardEl(c, {mini:true})));
+      sec.appendChild(row);
+    }
+    if (!h.streets[street].actions.length) {
+      sec.appendChild(el('div', {class:'help'}, 'No actions.'));
+    } else {
+      for (const a of h.streets[street].actions) {
+        const so = h.seats.find(x => x.seat === a.seat);
+        sec.appendChild(el('div', {class:'action-row'}, [
+          el('div', {class:'who'}, `${so.name} (${so.position}, S${a.seat})`),
+          el('div', {class:'what'}, a.act),
+          el('div', {class:'amt'}, a.amount ? a.amount.toLocaleString() : ''),
+          el('div', {class:'sm'}, a.note || ''),
+        ]));
+      }
+    }
+    sec.appendChild(el('div', {class:'help'}, `Pot at end of ${street}: ${h.streets[street].pot.toLocaleString()}`));
+    body.appendChild(sec);
+  }
+  const winnerNames = h.showdown.winners.map(s => h.seats.find(x => x.seat === s)?.name || ('S'+s));
+  body.appendChild(el('div', {style:'margin-top:8px;font-weight:600;'}, `Result: ${winnerNames.length? winnerNames.join(', ')+' won '+totalPot(h).toLocaleString() : 'no winner recorded'}`));
+  if (h.showdown.description) body.appendChild(el('div', {class:'help'}, h.showdown.description));
+  if (h.notes) body.appendChild(el('div', {class:'help'}, '📝 ' + h.notes));
+  $('#viewModal').classList.add('open');
+}
+$('#btnViewClose').addEventListener('click', () => $('#viewModal').classList.remove('open'));
+$('#btnViewDelete').addEventListener('click', () => {
+  if (!viewingHandId) return;
+  if (!confirm('Delete this hand from history? Stacks will NOT be reverted.')) return;
+  state.hands = state.hands.filter(h => h.id !== viewingHandId);
+  save(); render();
+  $('#viewModal').classList.remove('open');
+});
+
+/* Setup modal */
+function openSetup() {
+  $('#cfgName').value = state.tourney.name;
+  $('#cfgStart').value = state.tourney.startingStack;
+  renderBlindRows();
+  renderPlayerRows();
+  $('#setupModal').classList.add('open');
+}
+function renderBlindRows() {
+  const wrap = $('#blindRows'); wrap.innerHTML = '';
+  state.tourney.blinds.forEach((lvl, i) => {
+    const row = el('div', {class:'grid-4', style:'margin-bottom:4px;'}, [
+      el('div', {}, [el('label', {}, 'Lvl ' + (i+1) + ' SB'), el('input', {type:'number', value: lvl.sb, oninput: e => lvl.sb = Number(e.target.value)})]),
+      el('div', {}, [el('label', {}, 'BB'), el('input', {type:'number', value: lvl.bb, oninput: e => lvl.bb = Number(e.target.value)})]),
+      el('div', {}, [el('label', {}, 'Ante'), el('input', {type:'number', value: lvl.ante, oninput: e => lvl.ante = Number(e.target.value)})]),
+      el('div', {style:'display:flex;align-items:flex-end;'}, el('button', {class:'bad ghost', onclick: () => { state.tourney.blinds.splice(i,1); renderBlindRows(); }}, '✕')),
+    ]);
+    wrap.appendChild(row);
+  });
+}
+function renderPlayerRows() {
+  const wrap = $('#playerRows'); wrap.innerHTML = '';
+  state.players.forEach((p, i) => {
+    const row = el('div', {class:'grid-3', style:'margin-bottom:4px;'}, [
+      el('div', {}, [el('label', {}, `Seat ${p.seat} name`), el('input', {value: p.name, oninput: e => p.name = e.target.value})]),
+      el('div', {}, [el('label', {}, 'Stack'), el('input', {type:'number', value: p.stack, oninput: e => p.stack = Number(e.target.value)})]),
+      el('div', {style:'display:flex;align-items:flex-end;gap:4px;'}, [
+        el('label', {style:'display:flex;align-items:center;gap:4px;'}, [
+          el('input', {type:'checkbox', checked: p.alive, onchange: e => p.alive = e.target.checked}),
+          'alive',
+        ]),
+      ]),
+    ]);
+    wrap.appendChild(row);
+  });
+}
+$('#btnSetup').addEventListener('click', openSetup);
+$('#btnSetupCancel').addEventListener('click', () => { state = loadState(); $('#setupModal').classList.remove('open'); render(); });
+$('#btnSetupSave').addEventListener('click', () => {
+  state.tourney.name = $('#cfgName').value || 'Tournament';
+  state.tourney.startingStack = Number($('#cfgStart').value) || 10000;
+  save(); render();
+  $('#setupModal').classList.remove('open');
+});
+$('#btnAddLevel').addEventListener('click', () => {
+  const last = state.tourney.blinds[state.tourney.blinds.length-1] || {sb:25,bb:50,ante:0};
+  state.tourney.blinds.push({sb: last.sb*2, bb: last.bb*2, ante: last.ante*2});
+  renderBlindRows();
+});
+$('#btnResetAll').addEventListener('click', () => {
+  if (!confirm('Reset everything (players, hands, tournament)?')) return;
+  state = freshState(); save(); render();
+  $('#setupModal').classList.remove('open');
+});
+
+/* Export / Import */
+$('#btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `holdem-notes-${Date.now()}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+$('#btnImport').addEventListener('click', () => $('#fileImport').click());
+$('#fileImport').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const text = await file.text();
+  try {
+    const obj = JSON.parse(text);
+    if (!obj || !obj.tourney || !obj.players) throw new Error('not a valid file');
+    state = obj; save(); render();
+  } catch (err) { alert('Import failed: ' + err.message); }
+  e.target.value = '';
+});
+
+/* First-time render */
+render();
+</script>
+</body>
+</html>
